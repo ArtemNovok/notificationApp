@@ -1,0 +1,11 @@
+{{block "mail" .}}
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Name:</h2><span>{{.Message.SenderName}}</span><br><br>
+    <h3>Message:</h3><span>{{.Message.Text}}</span>
+
+</body>
+</html>
+
+{{end}}
