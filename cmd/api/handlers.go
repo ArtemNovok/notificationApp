@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/smtp"
+	"os"
 )
 
 type GetRequest struct {
@@ -13,9 +14,10 @@ type GetRequest struct {
 	To      []string `json:"to"`
 }
 
-const password = ""
+var password = os.Getenv("APP_PASSWORD")
 
 func (app *Config) HandleGetRequest(w http.ResponseWriter, r *http.Request) {
+	log.Println(password)
 	var req GetRequest
 	err := app.readJSON(w, r, &req)
 	if err != nil {
