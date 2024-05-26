@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 type JSONResponse struct {
@@ -64,4 +66,72 @@ func (app *Config) errorJSON(w http.ResponseWriter, err error, status ...int) er
 	payload.Message = err.Error()
 
 	return app.writeJSON(w, statusCode, payload)
+}
+
+func ValidateConvertData(month, day, hour, minute string) (int, int, int, int, error) {
+	if month == "" || day == "" || hour == "" || minute == "" {
+		return -1, -1, -1, -1, errors.New("Empty fields!")
+	}
+	intMonth, err := strconv.Atoi(month)
+	if err != nil || intMonth > 12 || intMonth < 1 {
+		return -1, -1, -1, -1, errors.New("Invalid month val")
+	}
+	intDay, err := strconv.Atoi(day)
+	if err != nil || intDay < 1 || intDay > 31 {
+		return -1, -1, -1, -1, errors.New("Invalid day val")
+	}
+	intHour, err := strconv.Atoi(hour)
+	if err != nil || intHour < 0 || intHour > 24 {
+		return -1, -1, -1, -1, errors.New("Invalid hour val")
+	}
+	intMinute, err := strconv.Atoi(minute)
+	if err != nil || intMinute < 0 || intMinute > 59 {
+		return -1, -1, -1, -1, errors.New("Invalid minute val")
+	}
+	return intMonth, intDay, intHour, intMinute, nil
+}
+
+func CreateDate(month, day, hour, min int, loc *time.Location) (time.Time, error) {
+	switch month {
+	case 1:
+
+		return time.Date(time.Now().Year(), time.January, day, hour, min, 0, 0, loc), nil
+	case 2:
+		if day > 28 {
+			return time.Time{}, errors.New("Invalid day for that month")
+		}
+		return time.Date(time.Now().Year(), time.February, day, hour, min, 0, 0, loc), nil
+	case 3:
+		return time.Date(time.Now().Year(), time.March, day, hour, min, 0, 0, loc), nil
+	case 4:
+		if day > 30 {
+			return time.Time{}, errors.New("Invalid day for that month")
+		}
+		return time.Date(time.Now().Year(), time.April, day, hour, min, 0, 0, loc), nil
+	case 5:
+		return time.Date(time.Now().Year(), time.May, day, hour, min, 0, 0, loc), nil
+	case 6:
+		if day > 30 {
+			return time.Time{}, errors.New("Invalid day for that month")
+		}
+		return time.Date(time.Now().Year(), time.June, day, hour, min, 0, 0, loc), nil
+	case 7:
+		return time.Date(time.Now().Year(), time.July, day, hour, min, 0, 0, loc), nil
+	case 8:
+		return time.Date(time.Now().Year(), time.August, day, hour, min, 0, 0, loc), nil
+	case 9:
+		if day > 30 {
+			return time.Time{}, errors.New("Invalid day for that month")
+		}
+		return time.Date(time.Now().Year(), time.September, day, hour, min, 0, 0, loc), nil
+	case 10:
+		return time.Date(time.Now().Year(), time.October, day, hour, min, 0, 0, loc), nil
+	case 11:
+		if day > 30 {
+			return time.Time{}, errors.New("Invalid day for that month")
+		}
+		return time.Date(time.Now().Year(), time.November, day, hour, min, 0, 0, loc), nil
+	default:
+		return time.Date(time.Now().Year(), time.December, day, hour, min, 0, 0, loc), nil
+	}
 }

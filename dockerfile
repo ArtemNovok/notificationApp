@@ -18,6 +18,10 @@ RUN mkdir /app
 
 WORKDIR /app
 
+ADD https://github.com/golang/go/raw/master/lib/time/zoneinfo.zip /zoneinfo.zip
+
+ENV ZONEINFO /zoneinfo.zip
+
 COPY --from=build /app/senderApp  /app
 
 CMD [ "/app/senderApp" ]
