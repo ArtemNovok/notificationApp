@@ -10,6 +10,7 @@ import (
 func (app *Config) routes() http.Handler {
 	mux := chi.NewMux()
 	mux.Use(middleware.Recoverer)
-	mux.Get("/", app.HandleGetRequest)
+	mux.Get("/email", app.HandleGetRequestEmails)
+	// mux.Get("/sms", app.HandleGetRequestSMS)
 	return mux
 }
