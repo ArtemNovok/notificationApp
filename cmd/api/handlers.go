@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -62,30 +62,24 @@ func (app *Config) HandleGetRequestSMS(w http.ResponseWriter, r *http.Request) {
 func (app *Config) HandlePostReq(w http.ResponseWriter, r *http.Request) {
 	err := data.InsertNow()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
-	w.Write([]byte("Handled!"))
+	app.writeJSON(w, http.StatusAccepted, "Handled")
 }
 
 func (app *Config) HandleGetReq(w http.ResponseWriter, r *http.Request) {
 	resp, err := data.CheckExpData()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}
 	var js data.Response
 	js.Data = resp
-	w.WriteHeader(http.StatusAccepted)
-	err = json.NewEncoder(w).Encode(js)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to encode response"))
-		return
+		app.errorJSON(w, err, http.StatusInternalServerError)
 	}
+	app.writeJSON(w, http.StatusAccepted, js)
 }
 
 func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
@@ -95,32 +89,27 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 	minute := r.FormValue("minute")
 	intMonth, intDay, intHour, intMinute, err := ValidateConvertData(month, day, hour, minute)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to load location"))
+		app.errorJSON(w, err, http.StatusBadRequest)
+		return
 	}
 	date, err := CreateDate(intMonth, intDay, intHour, intMinute, &app.loc)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 	log.Println(date)
 	if time.Now().After(date) {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("This date in the Past !!!"))
+		app.errorJSON(w, errors.New("This date in the past"), http.StatusBadRequest)
 		return
 	}
 	err = data.InsertWithExpDate(date)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Failed to insert data into table"))
+		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
-	w.Write([]byte("Successfully handled!"))
+	app.writeJSON(w, http.StatusAccepted, "Successfully handled")
 }
