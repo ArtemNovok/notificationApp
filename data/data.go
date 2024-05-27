@@ -6,13 +6,23 @@ import (
 	"time"
 )
 
-type TestData struct {
-	Text    string    `json"text"`
-	ExpData time.Time `json:"expdata"`
+type Email struct {
+	Id        int64     `json:"id,omitempty"`
+	Sender    string    `json:"sender"`
+	Password  string    `json:"password"`
+	Subject   string    `json:"subject"`
+	Message   Message   `json:"message"`
+	Recipient string    `json:"recipient"`
+	ExpDate   time.Time `json:"expDate"`
 }
 
-type Response struct {
-	Data []TestData `json:"data"`
+type Message struct {
+	SenderName string `json:"sendername"`
+	Text       string `json:"text"`
+}
+
+type Emails struct {
+	Emails []Email `json:"data"`
 }
 
 var DB *sql.DB
@@ -27,8 +37,14 @@ func NewDB(db *sql.DB) {
 }
 
 func CreateTestTable() error {
-	query := `create table if not exists test(
-		text varchar(200),
+	query := `create table if not exists tosend (
+		id serial primary key,
+		sender varchar(500),
+		sendername varchar(500),
+		password varchar(500),
+		recipient  varchar(500), 
+		subject varchar(777),
+		text text,
 		expdate timestamp
 	)`
 	stmt, err := DB.Prepare(query)
@@ -43,52 +59,50 @@ func CreateTestTable() error {
 	return nil
 }
 
-func InsertNow() error {
-	query := `insert into test(text, expdate) values($1, $2)`
-	_, err := DB.Exec(query, "test", time.Now())
+func InsertData(sender, sendername, password, recipient, subject, text string, expdate time.Time) error {
+	query := `insert into tosend(sender, sendername ,password, recipient, subject, text, expdate) values($1, $2, $3, $4, $5, $6, $7)`
+	stmt, err := DB.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(sender, sendername, password, recipient, subject, text, expdate)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func InsertWithExpDate(date time.Time) error {
-	query := `insert into test(text, expdate) values($1, $2)`
-	_, err := DB.Exec(query, "test", date)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func CheckExpData() ([]TestData, error) {
-	query := `select * from test where expdate < $1`
+func CheckExpData() ([]Email, error) {
+	query := `select * from tosend where expdate < $1`
 	rows, err := DB.Query(query, time.Now().UTC())
 	if err != nil {
-		return []TestData{}, err
+		return []Email{}, err
 	}
 	defer rows.Close()
-	var resp []TestData
+	var resp []Email
 	for rows.Next() {
-		var data TestData
-		err := rows.Scan(&data.Text, &data.ExpData)
+		var data Email
+		err := rows.Scan(&data.Id, &data.Sender, &data.Message.SenderName, &data.Password, &data.Recipient, &data.Subject, &data.Message.Text, &data.ExpDate)
 		if err != nil {
 			log.Println(err)
-			return []TestData{}, err
+			return []Email{}, err
 		}
 		resp = append(resp, data)
 	}
 	return resp, nil
 }
 
-func BackgroundChecker() {
-	for {
-		reps, err := CheckExpData()
-		if err != nil {
-			log.Println("Failed to check exp data in background")
-			continue
-		}
-		log.Println(reps)
-		time.Sleep(time.Second * 60)
+func DeleteEmail(id int64) error {
+	query := `delete from tosend where id = $1`
+	stmt, err := DB.Prepare(query)
+	if err != nil {
+		return err
 	}
+	defer stmt.Close()
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return err
+	}
+	return nil
 }

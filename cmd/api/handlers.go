@@ -10,11 +10,14 @@ import (
 	"github.com/ArtemNovok/Sender/data"
 )
 
-type GetRequest struct {
-	From    string   `json:"from"`
-	Subject string   `json:"subject"`
-	Message Message  `json:"message"`
-	To      []string `json:"to"`
+type Email struct {
+	Id        int64     `json:"id,omitempty"`
+	Sender    string    `json:"sender"`
+	Password  string    `json:"password"`
+	Subject   string    `json:"subject"`
+	Message   Message   `json:"message"`
+	Recipient string    `json:"recipient"`
+	ExpDate   time.Time `json:"expDate"`
 }
 
 type Message struct {
@@ -25,9 +28,9 @@ type Message struct {
 var password = os.Getenv("APP_PASSWORD")
 
 // This handler handle get request by decode req body and calling sendEmail func
-func (app *Config) HandleGetRequestEmails(w http.ResponseWriter, r *http.Request) {
+func (app *Config) HandlePostRequestEmails(w http.ResponseWriter, r *http.Request) {
 	//Decode req to get required data
-	var req GetRequest
+	var req Email
 	err := app.readJSON(w, r, &req)
 	if err != nil {
 		app.errorJSON(w, err, http.StatusBadRequest)
@@ -51,47 +54,22 @@ func (app *Config) HandleGetRequestEmails(w http.ResponseWriter, r *http.Request
 
 }
 
-func (app *Config) HandleGetRequestSMS(w http.ResponseWriter, r *http.Request) {
-	err := app.SendSMS()
-	if err != nil {
-		app.errorJSON(w, err, http.StatusInternalServerError)
-	}
-	app.writeJSON(w, http.StatusAccepted, nil)
-}
-
-func (app *Config) HandlePostReq(w http.ResponseWriter, r *http.Request) {
-	err := data.InsertNow()
-	if err != nil {
-		app.errorJSON(w, err, http.StatusInternalServerError)
-		return
-	}
-	app.writeJSON(w, http.StatusAccepted, "Handled")
-}
-
-func (app *Config) HandleGetReq(w http.ResponseWriter, r *http.Request) {
-	resp, err := data.CheckExpData()
-	if err != nil {
-		app.errorJSON(w, err, http.StatusInternalServerError)
-		return
-	}
-	var js data.Response
-	js.Data = resp
-	if err != nil {
-		app.errorJSON(w, err, http.StatusInternalServerError)
-	}
-	app.writeJSON(w, http.StatusAccepted, js)
-}
-
 func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 	month := r.FormValue("month")
 	day := r.FormValue("day")
 	hour := r.FormValue("hour")
 	minute := r.FormValue("minute")
-	intMonth, intDay, intHour, intMinute, err := ValidateConvertData(month, day, hour, minute)
-	if err != nil {
-		app.errorJSON(w, err, http.StatusBadRequest)
+	sender := r.FormValue("sender")
+	password := r.FormValue("password")
+	senderName := r.FormValue("sendername")
+	subject := r.FormValue("subject")
+	recipient := r.FormValue("recipient")
+	text := r.FormValue("text")
+	if sender == "" || password == "" || senderName == "" || subject == "" || recipient == "" || text == "" {
+		app.errorJSON(w, errors.New("empty fields!"))
 		return
 	}
+	intMonth, intDay, intHour, intMinute, err := ValidateConvertData(month, day, hour, minute)
 	if err != nil {
 		app.errorJSON(w, err, http.StatusBadRequest)
 		return
@@ -103,13 +81,18 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println(date)
 	if time.Now().After(date) {
-		app.errorJSON(w, errors.New("This date in the past"), http.StatusBadRequest)
+		app.errorJSON(w, errors.New("this date in the past"), http.StatusBadRequest)
 		return
 	}
-	err = data.InsertWithExpDate(date)
+	//err = data.InsertWithExpDate(date)
 	if err != nil {
 		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}
-	app.writeJSON(w, http.StatusAccepted, "Successfully handled")
+	err = data.InsertData(sender, senderName, password, recipient, subject, text, date)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+	app.writeJSON(w, http.StatusAccepted, "Successfully handled!")
 }
