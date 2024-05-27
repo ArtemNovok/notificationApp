@@ -81,20 +81,37 @@ func BackgroundChecker(app *Config, wg *sync.WaitGroup) {
 		}
 		for _, email := range emails {
 			wg.Add(1)
-			go func(email data.Email) {
-				err := app.SendEmailViaDB(&email)
+			go func(app *Config, email data.Email) {
+				err := SendTranEmail(app, &email)
 				if err != nil {
-					log.Printf("Failed to send email with id %v: %s", email.Id, err.Error())
-					return
-				}
-				err = data.DeleteEmail(email.Id)
-				if err != nil {
-					log.Printf("Email was sended but failed to delete record from db with id: %v", email.Id)
+					log.Println("Failed to send emails", err.Error())
+				} else {
+					err = data.DeleteRecipients(email.Id)
+					if err != nil {
+						log.Println("Failed to delete recipients: ", err.Error())
+					} else {
+						err := data.DeleteEmail(email.Id)
+						if err != nil {
+							log.Println("Failed to delete emails:", err.Error())
+						}
+					}
 				}
 				defer wg.Done()
-			}(email)
+			}(app, email)
 		}
 		wg.Wait()
 		time.Sleep(time.Second * 30)
 	}
+}
+func SendTranEmail(app *Config, email *data.Email) error {
+	recipents, err := data.FindRecipients(email.Id)
+	if err != nil {
+		return err
+	}
+	email.Recipient = recipents
+	err = app.SendEmailViaDB(email)
+	if err != nil {
+		return err
+	}
+	return nil
 }

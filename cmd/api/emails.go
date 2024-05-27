@@ -71,7 +71,7 @@ func (app *Config) SendEmailViaDB(email *data.Email) error {
 	addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
 	auth := smtp.PlainAuth("", email.Sender, email.Password, smtpHost)
 	//Send email to given addresses
-	err = smtp.SendMail(addr, auth, email.Sender, []string{email.Recipient}, body.Bytes())
+	err = smtp.SendMail(addr, auth, email.Sender, email.Recipient, body.Bytes())
 	if err != nil {
 		return err
 	}

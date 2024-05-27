@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"time"
@@ -134,4 +136,12 @@ func CreateDate(month, day, hour, min int, loc *time.Location) (time.Time, error
 	default:
 		return time.Date(time.Now().Year(), time.December, day, hour, min, 0, 0, loc), nil
 	}
+}
+
+func (app *Config) ReadContactsFile(file *multipart.File) ([][]string, error) {
+	records, err := csv.NewReader(*file).ReadAll()
+	if err != nil {
+		return [][]string{}, err
+	}
+	return records, nil
 }

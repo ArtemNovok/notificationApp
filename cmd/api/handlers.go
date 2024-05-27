@@ -55,6 +55,7 @@ func (app *Config) HandlePostRequestEmails(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
+	r.ParseMultipartForm(10 << 20)
 	month := r.FormValue("month")
 	day := r.FormValue("day")
 	hour := r.FormValue("hour")
@@ -63,31 +64,57 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	senderName := r.FormValue("sendername")
 	subject := r.FormValue("subject")
-	recipient := r.FormValue("recipient")
 	text := r.FormValue("text")
-	if sender == "" || password == "" || senderName == "" || subject == "" || recipient == "" || text == "" {
+	file, _, err := r.FormFile("recipient")
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	defer file.Close()
+	records, err := app.ReadContactsFile(&file)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	var recipients []string
+	for _, record := range records {
+		recipients = append(recipients, record[0])
+	}
+	if sender == "" || password == "" || senderName == "" || subject == "" || text == "" {
 		app.errorJSON(w, errors.New("empty fields"))
 		return
 	}
 	intMonth, intDay, intHour, intMinute, err := ValidateConvertData(month, day, hour, minute)
 	if err != nil {
+		log.Println("5")
 		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 	date, err := CreateDate(intMonth, intDay, intHour, intMinute, &app.loc)
 	if err != nil {
+		log.Println("4")
 		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 	log.Println(date)
 	if time.Now().After(date) {
+		log.Println("3")
 		app.errorJSON(w, errors.New("this date in the past"), http.StatusBadRequest)
 		return
 	}
-	err = data.InsertData(sender, senderName, password, recipient, subject, text, date)
+	id, err := data.InsertTosend(sender, senderName, password, subject, text, date)
 	if err != nil {
+		log.Println("2")
 		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
+	}
+	for _, recipient := range recipients {
+		err := data.InsertRecipients(id, recipient)
+		if err != nil {
+			log.Println("1")
+			app.errorJSON(w, err, http.StatusInternalServerError)
+			return
+		}
 	}
 	app.writeJSON(w, http.StatusAccepted, "Successfully handled!")
 }
