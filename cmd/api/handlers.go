@@ -66,7 +66,7 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 	recipient := r.FormValue("recipient")
 	text := r.FormValue("text")
 	if sender == "" || password == "" || senderName == "" || subject == "" || recipient == "" || text == "" {
-		app.errorJSON(w, errors.New("empty fields!"))
+		app.errorJSON(w, errors.New("empty fields"))
 		return
 	}
 	intMonth, intDay, intHour, intMinute, err := ValidateConvertData(month, day, hour, minute)
@@ -82,11 +82,6 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 	log.Println(date)
 	if time.Now().After(date) {
 		app.errorJSON(w, errors.New("this date in the past"), http.StatusBadRequest)
-		return
-	}
-	//err = data.InsertWithExpDate(date)
-	if err != nil {
-		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}
 	err = data.InsertData(sender, senderName, password, recipient, subject, text, date)
