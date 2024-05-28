@@ -27,6 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("location loaded")
 	app := Config{
 		loc: *loc,
 	}
@@ -90,9 +91,9 @@ func BackgroundChecker(app *Config, wg *sync.WaitGroup) {
 					if err != nil {
 						log.Println("Failed to delete recipients: ", err.Error())
 					} else {
-						err := data.DeleteEmail(email.Id)
+						err := data.ChangeStatusTosended(email.Id)
 						if err != nil {
-							log.Println("Failed to delete emails:", err.Error())
+							log.Println("Failed to change email status:", err.Error())
 						}
 					}
 				}

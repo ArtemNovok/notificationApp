@@ -7,13 +7,14 @@ import (
 )
 
 type Email struct {
-	Id        int64     `json:"id,omitempty"`
-	Sender    string    `json:"sender"`
-	Password  string    `json:"password"`
-	Subject   string    `json:"subject"`
-	Message   Message   `json:"message"`
-	Recipient []string  `json:"recipient"`
-	ExpDate   time.Time `json:"expDate"`
+	Id          int64     `json:"id,omitempty"`
+	Sender      string    `json:"sender"`
+	Password    string    `json:"password"`
+	Subject     string    `json:"subject"`
+	Message     Message   `json:"message"`
+	Recipient   []string  `json:"recipient"`
+	ExpDate     time.Time `json:"expDate"`
+	FullySended bool      `json:"fullysended"`
 }
 
 type Message struct {
@@ -40,6 +41,7 @@ func NewDB(db *sql.DB) {
 }
 func CreateRecipientTable() error {
 	query := `create table if not exists recipients (
+			id serial primary key,
 			transid int,
 			recipient varchar(500),
 			constraint fk_tran 
@@ -65,7 +67,8 @@ func CreateTosendTable() error {
 		password varchar(500),
 		subject varchar(777),
 		text text,
-		expdate timestamp)`
+		expdate timestamp,
+		fullysended boolean)`
 	stmt, err := DB.Prepare(query)
 	if err != nil {
 		return err
@@ -79,13 +82,13 @@ func CreateTosendTable() error {
 }
 
 func InsertTosend(sender, sendername, password, subject, text string, expdate time.Time) (int64, error) {
-	query := `insert into tosend(sender, sendername ,password,subject, text, expdate) values($1, $2, $3, $4, $5, $6) returning id`
+	query := `insert into tosend(sender, sendername ,password,subject, text, expdate, fullysended) values($1, $2, $3, $4, $5, $6, $7) returning id`
 	stmt, err := DB.Prepare(query)
 	if err != nil {
 		return -1, err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(sender, sendername, password, subject, text, expdate)
+	_, err = stmt.Exec(sender, sendername, password, subject, text, expdate, false)
 	if err != nil {
 		return -1, err
 	}
@@ -112,9 +115,41 @@ func InsertRecipients(id int64, recipient string) error {
 	return nil
 }
 
+func ChangeStatusTosended(id int64) error {
+	query := `select id from recipients where transid = $1`
+	res, err := DB.Query(query, id)
+	if err != nil {
+		return err
+	}
+	defer res.Close()
+	var ids []int64
+	for res.Next() {
+		var recId int64
+		err := res.Scan(&recId)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, recId)
+	}
+	if len(ids) > 0 {
+		return nil
+	}
+	secondQuery := `update tosend set fullysended = $1 where id = $2`
+	stmt, err := DB.Prepare(secondQuery)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(true, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func CheckExpData() ([]Email, error) {
-	query := `select * from tosend where expdate < $1`
-	rows, err := DB.Query(query, time.Now().UTC())
+	query := `select * from tosend where expdate < $1 and fullysended = $2 `
+	rows, err := DB.Query(query, time.Now().UTC(), false)
 	if err != nil {
 		return []Email{}, err
 	}
@@ -122,7 +157,7 @@ func CheckExpData() ([]Email, error) {
 	var resp []Email
 	for rows.Next() {
 		var data Email
-		err := rows.Scan(&data.Id, &data.Sender, &data.Message.SenderName, &data.Password, &data.Subject, &data.Message.Text, &data.ExpDate)
+		err := rows.Scan(&data.Id, &data.Sender, &data.Message.SenderName, &data.Password, &data.Subject, &data.Message.Text, &data.ExpDate, &data.FullySended)
 		if err != nil {
 			log.Println(err)
 			return []Email{}, err

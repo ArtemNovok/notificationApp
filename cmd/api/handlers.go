@@ -11,13 +11,14 @@ import (
 )
 
 type Email struct {
-	Id        int64     `json:"id,omitempty"`
-	Sender    string    `json:"sender"`
-	Password  string    `json:"password"`
-	Subject   string    `json:"subject"`
-	Message   Message   `json:"message"`
-	Recipient string    `json:"recipient"`
-	ExpDate   time.Time `json:"expDate"`
+	Id          int64     `json:"id,omitempty"`
+	Sender      string    `json:"sender"`
+	Password    string    `json:"password"`
+	Subject     string    `json:"subject"`
+	Message     Message   `json:"message"`
+	Recipient   string    `json:"recipient"`
+	ExpDate     time.Time `json:"expDate"`
+	FullySended bool      `json:"fullysended"`
 }
 
 type Message struct {
