@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -13,6 +14,9 @@ import (
 	_ "github.com/jackc/pgconn"
 	_ "github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 type Config struct {
@@ -20,7 +24,8 @@ type Config struct {
 }
 
 const webPort = "8000"
-const postgResurl = "host=host.docker.internal port=5432 user=postgres password=mysecretpassword dbname=postgres sslmode=disable timezone=UTC connect_timeout=5"
+const postgResurl = "host=postgres user=postgres password=mysecretpassword dbname=postgres sslmode=disable timezone=GMT-7 connect_timeout=5"
+const mongourl = "mongodb://mongodb"
 
 func main() {
 	loc, err := time.LoadLocation("America/Los_Angeles")
@@ -39,6 +44,11 @@ func main() {
 	defer db.Close()
 
 	data.NewDB(db)
+	con, err := ConectToMongo(mongourl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	data.NewClient(con)
 	log.Printf("Starting server on port:%s ...", webPort)
 	var wg sync.WaitGroup
 	go BackgroundChecker(&app, &wg)
@@ -91,9 +101,14 @@ func BackgroundChecker(app *Config, wg *sync.WaitGroup) {
 					if err != nil {
 						log.Println("Failed to delete recipients: ", err.Error())
 					} else {
-						err := data.ChangeStatusTosended(email.Id)
+						err = data.DeleteDocument(email.Id)
 						if err != nil {
-							log.Println("Failed to change email status:", err.Error())
+							log.Panicln("Failed to delete template: ", err.Error())
+						} else {
+							err := data.ChangeStatusTosended(email.Id)
+							if err != nil {
+								log.Println("Failed to change email status:", err.Error())
+							}
 						}
 					}
 				}
@@ -115,4 +130,24 @@ func SendTranEmail(app *Config, email *data.Email) error {
 		return err
 	}
 	return nil
+}
+func ConectToMongo(url string) (*mongo.Client, error) {
+	count := 0
+	for {
+		count++
+		cl, err := mongo.Connect(context.Background(), options.Client().ApplyURI(url))
+		if err != nil {
+			log.Println(err)
+		}
+		err = cl.Ping(context.Background(), &readpref.ReadPref{})
+		if err == nil {
+			log.Println("Successfully connected to db!")
+			return cl, nil
+		}
+		if count > 8 {
+			return nil, errors.New("failed to connect to mongo")
+		}
+		log.Println("Baking off for 2 seconds ...")
+		time.Sleep(time.Second * 2)
+	}
 }

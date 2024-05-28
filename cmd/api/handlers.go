@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/ArtemNovok/Sender/data"
@@ -15,48 +14,13 @@ type Email struct {
 	Sender      string    `json:"sender"`
 	Password    string    `json:"password"`
 	Subject     string    `json:"subject"`
-	Message     Message   `json:"message"`
 	Recipient   string    `json:"recipient"`
 	ExpDate     time.Time `json:"expDate"`
 	FullySended bool      `json:"fullysended"`
 }
 
-type Message struct {
-	SenderName string `json:"sendername"`
-	Text       string `json:"text"`
-}
-
-var password = os.Getenv("APP_PASSWORD")
-
-// This handler handle get request by decode req body and calling sendEmail func
-func (app *Config) HandlePostRequestEmails(w http.ResponseWriter, r *http.Request) {
-	//Decode req to get required data
-	var req Email
-	err := app.readJSON(w, r, &req)
-	if err != nil {
-		app.errorJSON(w, err, http.StatusBadRequest)
-		return
-	}
-	// close req body after performing logic
-	defer r.Body.Close()
-	log.Println(req.Message)
-	// calling sendEmail func and handle error if it occurs
-	err = app.SendEmail(req, password)
-	if err != nil {
-		app.errorJSON(w, err, http.StatusInternalServerError)
-		return
-	}
-	// If call is successful response with success
-	jsResp := JSONResponse{
-		Error:   false,
-		Message: "Emails successfully sended!!",
-	}
-	app.writeJSON(w, http.StatusAccepted, jsResp)
-
-}
-
 func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
-	r.ParseMultipartForm(10 << 20)
+	r.ParseMultipartForm(16 << 20)
 	month := r.FormValue("month")
 	day := r.FormValue("day")
 	hour := r.FormValue("hour")
@@ -67,6 +31,7 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 	subject := r.FormValue("subject")
 	text := r.FormValue("text")
 	file, _, err := r.FormFile("recipient")
+	temp, _, err := r.FormFile("template")
 	if err != nil {
 		app.errorJSON(w, err)
 		return
@@ -103,9 +68,20 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 		app.errorJSON(w, errors.New("this date in the past"), http.StatusBadRequest)
 		return
 	}
-	id, err := data.InsertTosend(sender, senderName, password, subject, text, date)
+	tp, err := ParseTemp(&temp)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusBadRequest)
+		return
+	}
+	id, err := data.InsertTosend(sender, password, subject, date)
 	if err != nil {
 		log.Println("2")
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+	tp.Id = id
+	err = data.InsertDocumet(tp)
+	if err != nil {
 		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}

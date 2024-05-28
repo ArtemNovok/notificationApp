@@ -1,29 +1,35 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Email struct {
-	Id          int64     `json:"id,omitempty"`
-	Sender      string    `json:"sender"`
-	Password    string    `json:"password"`
-	Subject     string    `json:"subject"`
-	Message     Message   `json:"message"`
+	Id       int64  `json:"id,omitempty"`
+	Sender   string `json:"sender"`
+	Password string `json:"password"`
+	Subject  string `json:"subject"`
+	// Message     Message   `json:"message"`
 	Recipient   []string  `json:"recipient"`
 	ExpDate     time.Time `json:"expDate"`
 	FullySended bool      `json:"fullysended"`
 }
 
-type Message struct {
-	SenderName string `json:"sendername"`
-	Text       string `json:"text"`
+type Template struct {
+	Id  int64  `json:"id" bson:"id"`
+	Str string `json:"str" bson:"str"`
 }
 
-type Emails struct {
-	Emails []Email `json:"data"`
+var client *mongo.Client
+
+func NewClient(cl *mongo.Client) {
+	client = cl
 }
 
 var DB *sql.DB
@@ -63,10 +69,8 @@ func CreateTosendTable() error {
 	query := `create table if not exists tosend (
 		id serial primary key,
 		sender varchar(500),
-		sendername varchar(500),
 		password varchar(500),
 		subject varchar(777),
-		text text,
 		expdate timestamp,
 		fullysended boolean)`
 	stmt, err := DB.Prepare(query)
@@ -81,14 +85,14 @@ func CreateTosendTable() error {
 	return nil
 }
 
-func InsertTosend(sender, sendername, password, subject, text string, expdate time.Time) (int64, error) {
-	query := `insert into tosend(sender, sendername ,password,subject, text, expdate, fullysended) values($1, $2, $3, $4, $5, $6, $7) returning id`
+func InsertTosend(sender, password, subject string, expdate time.Time) (int64, error) {
+	query := `insert into tosend(sender ,password,subject,expdate, fullysended) values($1, $2, $3, $4, $5) returning id`
 	stmt, err := DB.Prepare(query)
 	if err != nil {
 		return -1, err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(sender, sendername, password, subject, text, expdate, false)
+	_, err = stmt.Exec(sender, password, subject, expdate, false)
 	if err != nil {
 		return -1, err
 	}
@@ -149,7 +153,7 @@ func ChangeStatusTosended(id int64) error {
 
 func CheckExpData() ([]Email, error) {
 	query := `select * from tosend where expdate < $1 and fullysended = $2 `
-	rows, err := DB.Query(query, time.Now().UTC(), false)
+	rows, err := DB.Query(query, time.Now(), false)
 	if err != nil {
 		return []Email{}, err
 	}
@@ -157,7 +161,7 @@ func CheckExpData() ([]Email, error) {
 	var resp []Email
 	for rows.Next() {
 		var data Email
-		err := rows.Scan(&data.Id, &data.Sender, &data.Message.SenderName, &data.Password, &data.Subject, &data.Message.Text, &data.ExpDate, &data.FullySended)
+		err := rows.Scan(&data.Id, &data.Sender, &data.Password, &data.Subject, &data.ExpDate, &data.FullySended)
 		if err != nil {
 			log.Println(err)
 			return []Email{}, err
@@ -204,4 +208,32 @@ func DeleteEmail(id int64) error {
 		return err
 	}
 	return nil
+}
+
+func InsertDocumet(t Template) error {
+	coll := client.Database("templates").Collection("template")
+	_, err := coll.InsertOne(context.Background(), t)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteDocument(id int64) error {
+	coll := client.Database("templates").Collection("template")
+	_, err := coll.DeleteMany(context.Background(), bson.D{{"id", id}})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetDocument(id int64) (Template, error) {
+	coll := client.Database("templates").Collection("template")
+	var temp Template
+	err := coll.FindOne(context.Background(), bson.D{{"id", id}}).Decode(&temp)
+	if err != nil {
+		return Template{}, err
+	}
+	return temp, nil
 }

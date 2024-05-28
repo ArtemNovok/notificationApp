@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/ArtemNovok/Sender/data"
 )
 
 type JSONResponse struct {
@@ -144,4 +146,15 @@ func (app *Config) ReadContactsFile(file *multipart.File) ([][]string, error) {
 		return [][]string{}, err
 	}
 	return records, nil
+}
+
+func ParseTemp(file *multipart.File) (data.Template, error) {
+	bytes, err := io.ReadAll(*file)
+	if err != nil {
+		return data.Template{}, err
+	}
+	str := string(bytes)
+	var temp data.Template
+	temp.Str = str
+	return temp, nil
 }

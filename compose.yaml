@@ -8,3 +8,15 @@ services:
       - .env
     ports:
       - "8000:8000"
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword
+      TZ: 'GMT-7'
+      PGTZ: 'GMT-7'
+
+  mongodb:
+    image: mongo
+    restart: always
+    
