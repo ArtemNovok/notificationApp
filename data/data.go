@@ -210,7 +210,7 @@ func DeleteEmail(id int64) error {
 	return nil
 }
 
-func InsertDocumet(t Template) error {
+func InsertDocument(t Template) error {
 	coll := client.Database("templates").Collection("template")
 	_, err := coll.InsertOne(context.Background(), t)
 	if err != nil {
