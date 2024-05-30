@@ -3,8 +3,8 @@ package main
 import (
 	"embed"
 	"html/template"
-	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/ArtemNovok/Sender/data"
@@ -31,6 +31,8 @@ type ErrorResponse struct {
 	Error    bool   `json:"error"`
 	Message  string `json:"message"`
 }
+
+var Mysecret = os.Getenv("SECRET")
 
 func newErrorRes(month, day, hour, minute, sender, password, subject string) ErrorResponse {
 	return ErrorResponse{Month: month, Day: day, Hour: hour, Minute: minute, Sender: sender, Password: password, Subject: subject}
@@ -77,6 +79,14 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 		templ.ExecuteTemplate(w, "index", errResp)
 		return
 	}
+	ecrPassword, err := Encrypt(password, Mysecret)
+	if err != nil {
+		errResp.Error = true
+		errResp.Message = err.Error()
+		templ.ExecuteTemplate(w, "index", errResp)
+		return
+	}
+
 	intMonth, intDay, intHour, intMinute, err := ValidateConvertData(month, day, hour, minute)
 	if err != nil {
 		errResp.Error = true
@@ -91,7 +101,6 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 		templ.ExecuteTemplate(w, "index", errResp)
 		return
 	}
-	log.Println(date)
 	if time.Now().After(date) {
 		errResp.Error = true
 		errResp.Message = "This date in the past"
@@ -105,7 +114,7 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 		templ.ExecuteTemplate(w, "index", errResp)
 		return
 	}
-	id, err := data.InsertTosend(sender, password, subject, date)
+	id, err := data.InsertTosend(sender, ecrPassword, subject, date)
 	if err != nil {
 		errResp.Error = true
 		errResp.Message = err.Error()

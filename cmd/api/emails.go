@@ -35,9 +35,14 @@ func (app *Config) SendEmailViaDB(email *data.Email) error {
 	if err != nil {
 		return err
 	}
+	//Decrypt password
+	password, err := Decrypt(email.Password, Mysecret)
+	if err != nil {
+		return err
+	}
 	// Authenticate
 	addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
-	auth := smtp.PlainAuth("", email.Sender, email.Password, smtpHost)
+	auth := smtp.PlainAuth("", email.Sender, password, smtpHost)
 	//Send email to given addresses
 	err = smtp.SendMail(addr, auth, email.Sender, email.Recipient, body.Bytes())
 	if err != nil {
