@@ -2,12 +2,25 @@ version: '3'
 services:
   sender:
     build:
-      context: ./
+      context: ./broker
       dockerfile: ./dockerfile 
     env_file:
       - .env
     ports:
       - "8000:8000"
+    depends_on:
+      - broker
+
+  email-sender:
+    build: 
+      context: ./email-sender
+      dockerfile: ./emailsender.dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - broker
+    restart: always
+
   postgres:
     image: postgres
     restart: always
@@ -16,7 +29,38 @@ services:
       TZ: 'GMT-7'
       PGTZ: 'GMT-7'
 
+
   mongodb:
     image: mongo
     restart: always
-    
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0 
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  broker:
+    image: confluentinc/cp-kafka:7.3.0 
+    container_name: broker
+    ports:
+      - "9092:9092"
+    expose:
+      - "9093"
+    depends_on:
+      - zookeeper
+    environment:
+      # KAFKA_PROCESS_ROLES: broker
+      KAFKA_BROKER_ID: 1
+      # KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      # KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      # KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:80,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://broker:9093,OUTSIDE://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "Emails"
