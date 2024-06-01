@@ -35,6 +35,8 @@ const (
 )
 
 func main() {
+	log.Println("Giving time to kafka (10 second)")
+	time.Sleep(time.Second * 10)
 	loc, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
 		log.Fatal(err)
