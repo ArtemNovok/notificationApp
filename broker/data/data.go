@@ -16,8 +16,9 @@ type Email struct {
 	Password    string    `json:"password"`
 	Subject     string    `json:"subject"`
 	Recipient   []string  `json:"recipient"`
-	ExpDate     time.Time `json:"expDate"`
-	FullySended bool      `json:"fullysended"`
+	ExpDate     time.Time `json:"expDate,omitempty"`
+	InQue       bool      `json:"inque,omitempty"`
+	FullySended bool      `json:"fullysended,omitempty"`
 	Template    string    `json:"template"`
 }
 
@@ -72,6 +73,7 @@ func CreateTosendTable() error {
 		password varchar(500),
 		subject varchar(777),
 		expdate timestamp,
+		inque boolean,
 		fullysended boolean)`
 	stmt, err := DB.Prepare(query)
 	if err != nil {
@@ -86,13 +88,13 @@ func CreateTosendTable() error {
 }
 
 func InsertTosend(sender, password, subject string, expdate time.Time) (int64, error) {
-	query := `insert into tosend(sender ,password,subject,expdate, fullysended) values($1, $2, $3, $4, $5) returning id`
+	query := `insert into tosend(sender ,password,subject,expdate,inque, fullysended) values($1, $2, $3, $4, $5, $6) returning id`
 	stmt, err := DB.Prepare(query)
 	if err != nil {
 		return -1, err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(sender, password, subject, expdate, false)
+	_, err = stmt.Exec(sender, password, subject, expdate, false, false)
 	if err != nil {
 		return -1, err
 	}
@@ -152,7 +154,7 @@ func ChangeStatusTosended(id int64) error {
 }
 
 func CheckExpData() ([]Email, error) {
-	query := `select * from tosend where expdate < $1 and fullysended = $2 `
+	query := `select id, sender, password, subject from tosend where expdate < $1 and inque = $2 `
 	rows, err := DB.Query(query, time.Now(), false)
 	if err != nil {
 		return []Email{}, err
@@ -161,7 +163,7 @@ func CheckExpData() ([]Email, error) {
 	var resp []Email
 	for rows.Next() {
 		var data Email
-		err := rows.Scan(&data.Id, &data.Sender, &data.Password, &data.Subject, &data.ExpDate, &data.FullySended)
+		err := rows.Scan(&data.Id, &data.Sender, &data.Password, &data.Subject)
 		if err != nil {
 			log.Println(err)
 			return []Email{}, err
@@ -170,6 +172,21 @@ func CheckExpData() ([]Email, error) {
 	}
 	return resp, nil
 }
+
+func ChangeQueStatus(id int64) error {
+	query := `update tosend set inque = $1 where id = $2`
+	stmt, err := DB.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(true, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func FindRecipients(id int64) ([]string, error) {
 	query := `select recipient from recipients where transid = $1`
 	res, err := DB.Query(query, id)
@@ -236,4 +253,20 @@ func GetDocument(id int64) (Template, error) {
 		return Template{}, err
 	}
 	return temp, nil
+}
+
+func DeleteSendedTans(id int64) error {
+	err := DeleteRecipients(id)
+	if err != nil {
+		return err
+	}
+	err = DeleteDocument(id)
+	if err != nil {
+		return err
+	}
+	err = ChangeStatusTosended(id)
+	if err != nil {
+		return err
+	}
+	return nil
 }

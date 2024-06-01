@@ -56,17 +56,16 @@ func main() {
 		log.Fatal(err)
 	}
 	data.NewClient(con)
-	// conn, err := ConnectKafka(context.Background(), "tcp", kafkaHost, "Emails", 0)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// Conn = conn
 	w := &kafka.Writer{
 		Addr:     kafka.TCP("broker:9093"),
 		Topic:    "Emails",
 		Balancer: &kafka.LeastBytes{},
 	}
 	Writer = w
+	defer Writer.Close()
+	r := NewReader()
+	defer r.Close()
+	go ReadMessages(r)
 	log.Printf("Starting server on port:%s ...", webPort)
 	var wg sync.WaitGroup
 	go BackgroundChecker(&app, &wg)
@@ -113,24 +112,8 @@ func BackgroundChecker(app *Config, wg *sync.WaitGroup) {
 			go func(app *Config, email data.Email) {
 				err = SendTranEmail(app, &email)
 				if err != nil {
-					log.Println("Failed to push emails", err.Error())
+					log.Println("Failed to push emails in que: ", err.Error())
 				}
-				// else {
-				// 	err = data.DeleteRecipients(email.Id)
-				// 	if err != nil {
-				// 		log.Println("Failed to delete recipients: ", err.Error())
-				// 	} else {
-				// 		err = data.DeleteDocument(email.Id)
-				// 		if err != nil {
-				// 			log.Panicln("Failed to delete template: ", err.Error())
-				// 		} else {
-				// 			err := data.ChangeStatusTosended(email.Id)
-				// 			if err != nil {
-				// 				log.Println("Failed to change email status:", err.Error())
-				// 			}
-				// }
-				// }
-				// }
 				defer wg.Done()
 			}(app, email)
 		}
@@ -152,11 +135,12 @@ func SendTranEmail(app *Config, email *data.Email) error {
 	err = PlaceEmail(*email)
 	if err != nil {
 		log.Printf("failed to push email into que: %s", err.Error())
+		return err
 	}
-	// err = app.SendEmailViaDB(email)
-	// if err != nil {
-	// 	return err
-	// }
+	err = data.ChangeQueStatus(email.Id)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func ConectToMongo(url string) (*mongo.Client, error) {
