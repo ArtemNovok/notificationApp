@@ -49,7 +49,7 @@ func ReadMessages(reader *kafka.Reader) {
 		time.Sleep(time.Second * 10)
 		m, err := reader.ReadMessage(context.Background())
 		if err != nil {
-			log.Println("failed to read sended message")
+			log.Println("failed to read sended message: ", err.Error())
 			continue
 		} else {
 			var email SendedEmail

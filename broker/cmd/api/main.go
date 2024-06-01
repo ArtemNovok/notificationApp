@@ -68,7 +68,10 @@ func main() {
 	go ReadMessages(r)
 	log.Printf("Starting server on port:%s ...", webPort)
 	var wg sync.WaitGroup
+	var wg2 sync.WaitGroup
 	go BackgroundChecker(&app, &wg)
+	go MissedEmailsChecker(&app, &wg2)
+	go BackgroundCleaner()
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", webPort),
 		Handler: app.routes(),
@@ -97,6 +100,28 @@ func ConnectToDB(url string) (*sql.DB, error) {
 		log.Println("Baking off for 2 seconds...")
 		time.Sleep(time.Second * 2)
 		continue
+	}
+}
+
+func MissedEmailsChecker(app *Config, wg *sync.WaitGroup) {
+	for {
+		time.Sleep(time.Second * 120)
+		missedEmails, err := data.CheckMissedMessages()
+		if err != nil {
+			log.Println("failed to check missed data: ", err.Error())
+			continue
+		}
+		for _, email := range missedEmails {
+			wg.Add(1)
+			go func(app *Config, email data.Email) {
+				err = SendTranEmail(app, &email)
+				if err != nil {
+					log.Println("Failed to push emails in que: ", err.Error())
+				}
+				defer wg.Done()
+			}(app, email)
+		}
+		wg.Wait()
 	}
 }
 
@@ -161,5 +186,15 @@ func ConectToMongo(url string) (*mongo.Client, error) {
 		}
 		log.Println("Baking off for 2 seconds ...")
 		time.Sleep(time.Second * 2)
+	}
+}
+
+func BackgroundCleaner() {
+	for {
+		err := data.DeleteSendedMessages()
+		if err != nil {
+			log.Println("failed to clean tables: ", err.Error())
+		}
+		time.Sleep(time.Second * 60)
 	}
 }

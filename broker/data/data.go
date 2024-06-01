@@ -270,3 +270,37 @@ func DeleteSendedTans(id int64) error {
 	}
 	return nil
 }
+
+func CheckMissedMessages() ([]Email, error) {
+	query := `select id, sender, password, subject from tosend where expdate < $1 and inque = $2 and fullysended = $3 `
+	rows, err := DB.Query(query, time.Now(), true, false)
+	if err != nil {
+		return []Email{}, err
+	}
+	defer rows.Close()
+	var resp []Email
+	for rows.Next() {
+		var data Email
+		err := rows.Scan(&data.Id, &data.Sender, &data.Password, &data.Subject)
+		if err != nil {
+			log.Println(err)
+			return []Email{}, err
+		}
+		resp = append(resp, data)
+	}
+	return resp, nil
+}
+
+func DeleteSendedMessages() error {
+	query := `delete from tosend where inque = true and fullysended = true`
+	stmt, err := DB.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec()
+	if err != nil {
+		return err
+	}
+	return nil
+}

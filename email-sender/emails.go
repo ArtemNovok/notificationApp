@@ -7,11 +7,13 @@ import (
 	"log"
 	"net/smtp"
 	"os"
+	"time"
 )
 
 var Mysecret = os.Getenv("SECRET")
 
 func (app *Config) SendEmailViaDB(email *Email) error {
+	time.Sleep(time.Second * 10)
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
 	// parsing template
