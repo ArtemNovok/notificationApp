@@ -11,6 +11,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"net/mail"
 	"strconv"
 	"time"
 
@@ -199,4 +200,9 @@ func Decrypt(text, MySecret string) (string, error) {
 	plainText := make([]byte, len(cipherText))
 	cfb.XORKeyStream(plainText, cipherText)
 	return string(plainText), nil
+}
+
+func ValidEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
 }

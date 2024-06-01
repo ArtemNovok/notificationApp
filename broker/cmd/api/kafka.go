@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/ArtemNovok/Sender/data"
 	"github.com/segmentio/kafka-go"
@@ -45,22 +46,31 @@ func NewReader() *kafka.Reader {
 
 func ReadMessages(reader *kafka.Reader) {
 	for {
+		time.Sleep(time.Second * 10)
 		m, err := reader.ReadMessage(context.Background())
 		if err != nil {
 			log.Println("failed to read sended message")
 			continue
+		} else {
+			var email SendedEmail
+			err = json.Unmarshal(m.Value, &email)
+			if err != nil {
+				log.Println("failed to unmarshal message value")
+				continue
+			} else {
+				if !email.Sended {
+					log.Println("This email wasn't sended id: ", email.Id)
+					continue
+				} else {
+					err = data.DeleteSendedTans(email.Id)
+					if err != nil {
+						log.Println(err)
+						continue
+					} else {
+						log.Println("Message was sended and its status is changed")
+					}
+				}
+			}
 		}
-		var email SendedEmail
-		err = json.Unmarshal(m.Value, &email)
-		if err != nil {
-			log.Println("failed to unmarshal message value")
-			continue
-		}
-		err = data.DeleteSendedTans(email.Id)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		log.Println("Message was sended and its status is changed")
 	}
 }

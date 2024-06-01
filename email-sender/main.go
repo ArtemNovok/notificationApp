@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -23,11 +24,12 @@ type SendedEmail struct {
 	Id     int64 `json:"id"`
 	Sended bool  `json:"sended"`
 }
-
 type Config struct {
 }
 
 func main() {
+	log.Println("Giving time to kafka  (10 seconds)")
+	time.Sleep(10 * time.Second)
 	log.Println("Starting emails sender service")
 	app := Config{}
 	// Setting up kafka
@@ -65,19 +67,25 @@ func main() {
 		err = app.SendEmailViaDB(&email)
 		if err != nil {
 			log.Printf("Failed to send emails: %s\n", err.Error())
+			err = Write(&email, w, false)
+			if err != nil {
+				log.Println("failed to send failed message")
+			}
+		} else {
+			err = Write(&email, w, true)
+			if err != nil {
+				log.Println("failed to put sended message into que with id: ", email.Id)
+			} else {
+				log.Println("message putted")
+			}
 		}
-		err = Write(&email, w)
-		if err != nil {
-			log.Println("failed to put sended message into que with id: ", email.Id)
-		}
-		log.Println("message putted")
 	}
 }
 
-func Write(email *Email, w *kafka.Writer) error {
+func Write(email *Email, w *kafka.Writer, sended bool) error {
 	var sendedEmail SendedEmail
 	sendedEmail.Id = email.Id
-	sendedEmail.Sended = true
+	sendedEmail.Sended = sended
 	bytes, err := json.Marshal(sendedEmail)
 	if err != nil {
 		return err

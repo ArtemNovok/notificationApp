@@ -54,6 +54,13 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 	temp, _, err := r.FormFile("template")
 	errResp := newErrorRes(month, day, hour, minute, sender, password, subject)
 	templ := template.Must(template.ParseFS(templatesFS, "templates/index.html.gohtml"))
+	isValid := ValidEmail(sender)
+	if !isValid {
+		errResp.Error = true
+		errResp.Message = "Invalid email address"
+		templ.ExecuteTemplate(w, "index", errResp)
+		return
+	}
 	if err != nil {
 		errResp.Error = true
 		errResp.Message = err.Error()
