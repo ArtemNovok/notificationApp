@@ -21,8 +21,9 @@ type Email struct {
 }
 
 type SendedEmail struct {
-	Id     int64 `json:"id"`
-	Sended bool  `json:"sended"`
+	Id     int64  `json:"id"`
+	Sended bool   `json:"sended"`
+	Error  string `json:"error"`
 }
 type Config struct {
 }
@@ -67,12 +68,12 @@ func main() {
 		err = app.SendEmailViaDB(&email)
 		if err != nil {
 			log.Printf("Failed to send emails: %s\n", err.Error())
-			err = Write(&email, w, false)
+			err = Write(&email, w, false, err.Error())
 			if err != nil {
 				log.Println("failed to send failed message")
 			}
 		} else {
-			err = Write(&email, w, true)
+			err = Write(&email, w, true, "")
 			if err != nil {
 				log.Println("failed to put sended message into que with id: ", email.Id)
 			} else {
@@ -82,10 +83,11 @@ func main() {
 	}
 }
 
-func Write(email *Email, w *kafka.Writer, sended bool) error {
+func Write(email *Email, w *kafka.Writer, sended bool, errStr string) error {
 	var sendedEmail SendedEmail
 	sendedEmail.Id = email.Id
 	sendedEmail.Sended = sended
+	sendedEmail.Error = errStr
 	bytes, err := json.Marshal(sendedEmail)
 	if err != nil {
 		return err

@@ -11,8 +11,9 @@ import (
 )
 
 type SendedEmail struct {
-	Id     int64 `json:"id"`
-	Sended bool  `json:"sended"`
+	Id     int64  `json:"id"`
+	Sended bool   `json:"sended"`
+	Error  string `json:"error"`
 }
 
 func ConnectKafka(ctx context.Context, conType, host, topic string, partition int) (*kafka.Conn, error) {
@@ -60,6 +61,11 @@ func ReadMessages(reader *kafka.Reader) {
 			} else {
 				if !email.Sended {
 					log.Println("This email wasn't sended id: ", email.Id)
+					log.Printf("Error: %s\n", email.Error)
+					err = data.UpdateErrorStatus(email.Id)
+					if err != nil {
+						log.Printf("failed to update error status: %s", err.Error())
+					}
 					continue
 				} else {
 					err = data.DeleteSendedTans(email.Id)
