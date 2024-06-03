@@ -9,28 +9,32 @@
     <title>Document</title>
 </head>
 <body  class="container">
+    <div class="text-center">
+        <h1>Simple Notification App</h1>
+    </div>
     <form  hx-post="/exp"  hx-encoding="multipart/form-data"
     class="d-flex flex-column justify-content-center align-items-center text-center">
         {{ if .Error }}
         <h2>{{.Message}}</h2>
         {{end}}
-        <label for="month">Month</label>
+        <label for="month"><p>Month</p></label>
+
         <input value="{{.Month}}" name="month" type="text">
-        <label for="day">Day</label>
+        <label for="day"><p>Day</p></label>
         <input value="{{.Day}}" name="day" type="text">
-        <label for="hour">Hour</label>
+        <label for="hour"><p>Hour</p></label>
         <input value="{{.Hour}}" name="hour" type="text">
-        <label for="minute">Minute</label>
+        <label for="minute"><p>Minute</p></label>
         <input value="{{.Minute}}" name="minute" type="text">
-        <label for="sender">Sender Email</label>
+        <label for="sender"><p>Sender Email</p></label>
         <input value="{{.Sender}}" name="sender" type="text">
-        <label for="password">Sender Application password</label>
+        <label for="password"><p>Sender Application password</p></label>
         <input value="{{.Password}}" name="password" type="text">
-        <label for="subject">Subject</label>
+        <label for="subject"><p>Subject</p></label>
         <input value="{{.Subject}}" name="subject" type="text">
-        <label for="recipient">Recipients (csv file) </label>
+        <label for="recipient"><p>Recipients (csv file)</p> </label>
         <input name="recipient" type="file">
-        <label for="template">Your Template (html file)</label>
+        <label for="template"><p>Your Template (html file)</p></label>
         <input name="template" type="file">
         <button class="btn btn-primary">Submit</button>
     </form>
