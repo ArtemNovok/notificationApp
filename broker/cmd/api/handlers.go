@@ -145,7 +145,7 @@ func (app *Config) HandlePostExp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	app.writeJSON(w, http.StatusAccepted, "Successfully handled!")
+	templ.ExecuteTemplate(w, "success", nil)
 }
 
 func (app *Config) HandleMainPage(w http.ResponseWriter, r *http.Request) {

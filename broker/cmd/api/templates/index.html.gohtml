@@ -9,7 +9,6 @@
     <title>Document</title>
 </head>
 <body  class="container">
-    
     <form  hx-post="/exp"  hx-encoding="multipart/form-data"
     class="d-flex flex-column justify-content-center align-items-center text-center">
         {{ if .Error }}
@@ -29,12 +28,19 @@
         <input value="{{.Password}}" name="password" type="text">
         <label for="subject">Subject</label>
         <input value="{{.Subject}}" name="subject" type="text">
-        <label for="recipient">Recipients</label>
+        <label for="recipient">Recipients (csv file) </label>
         <input name="recipient" type="file">
-        <label for="template">Your Template</label>
+        <label for="template">Your Template (html file)</label>
         <input name="template" type="file">
         <button class="btn btn-primary">Submit</button>
     </form>
 </body>
 </html>
+{{end}}
+
+
+{{block "success" .}}
+<div class="text-center">
+    <h2 class="fs-2">Your request successfully handled</h2>
+</div>
 {{end}}

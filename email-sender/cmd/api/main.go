@@ -67,12 +67,21 @@ func main() {
 		// Sending emails
 		err = app.SendEmailViaDB(&email)
 		if err != nil {
+			tempErr := err
 			log.Printf("Failed to send emails: %s\n", err.Error())
-			err = Write(&email, w, false, err.Error())
+			err = SendBadNotificationToSender(&email, err)
+			if err != nil {
+				log.Println("failed to send notification about fail")
+			}
+			err = Write(&email, w, false, tempErr.Error())
 			if err != nil {
 				log.Println("failed to send failed message")
 			}
 		} else {
+			err = SendNotificationToSender(&email)
+			if err != nil {
+				log.Println("failed to send notification to sender")
+			}
 			err = Write(&email, w, true, "")
 			if err != nil {
 				log.Println("failed to put sended message into que with id: ", email.Id)

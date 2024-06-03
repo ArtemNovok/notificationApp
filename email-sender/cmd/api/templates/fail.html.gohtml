@@ -1,0 +1,9 @@
+{{block "index" .}}
+<!DOCTYPE html>
+<html lang="en">
+<body>
+    <h2>Your emails with subject: {{.Subject}}</h2> 
+    <h2>Weren't sended to recipients!</h2>
+    <h2>Error:{{.Error}}</h2>
+</body>
+{{end}}

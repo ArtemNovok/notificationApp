@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/mail"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ArtemNovok/Sender/data"
@@ -77,6 +78,10 @@ func (app *Config) errorJSON(w http.ResponseWriter, err error, status ...int) er
 }
 
 func ValidateConvertData(month, day, hour, minute string) (int, int, int, int, error) {
+	month = strings.ReplaceAll(month, " ", "")
+	day = strings.ReplaceAll(day, " ", "")
+	hour = strings.ReplaceAll(hour, " ", "")
+	minute = strings.ReplaceAll(minute, " ", "")
 	if month == "" || day == "" || hour == "" || minute == "" {
 		return -1, -1, -1, -1, errors.New("empty fields")
 	}
@@ -149,7 +154,15 @@ func (app *Config) ReadContactsFile(file *multipart.File) ([][]string, error) {
 	if err != nil {
 		return [][]string{}, err
 	}
-	return records, nil
+	var cleanedRecords [][]string
+	Exists := make(map[string]bool)
+	for _, recod := range records {
+		if !Exists[recod[0]] {
+			cleanedRecords = append(cleanedRecords, recod)
+			Exists[recod[0]] = true
+		}
+	}
+	return cleanedRecords, nil
 }
 
 func ParseTemp(file *multipart.File) (data.Template, error) {
