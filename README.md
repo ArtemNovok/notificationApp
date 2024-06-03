@@ -1,0 +1,3 @@
+### Simple notification app
+## To use create an application password and enter it in the .env file with your email. Also for use, you need a CSV file where each line is one email (recipient) without any spaces. You also need your custom template for emails, It is a simple HTML file with the content you need (make sure the file is below 16 MB) In the main folder type the "make build" command in a terminal, it will build and start docker containers after that enter localhost:8000 (default, see .env file) in your browser and fill out the form. You will get a notification (if your email exists) about the status of your notification
+## To stop the application, enter in terminal "make stop"
