@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -27,17 +28,18 @@ type Config struct {
 var Conn *kafka.Conn
 var Writer *kafka.Writer
 
-const (
-	webPort     = "8000"
-	postgResurl = "host=postgres user=postgres password=mysecretpassword dbname=postgres sslmode=disable timezone=GMT-7 connect_timeout=5"
-	mongourl    = "mongodb://mongodb"
-	kafkaHost   = "localhost:9092"
+// "host=postgres user=postgres password=mysecretpassword dbname=postgres sslmode=disable timezone=GMT-7 connect_timeout=5"
+var (
+	webPort     = os.Getenv("WEB_PORT")
+	postgResurl = os.Getenv("POSTGRES_URL")
+	mongourl    = os.Getenv("MONGO_URL")
+	kafkaHost   = os.Getenv("KAFKA_HOST")
 )
 
 func main() {
 	log.Println("Giving time to kafka (10 second)")
 	time.Sleep(time.Second * 10)
-	loc, err := time.LoadLocation("America/Los_Angeles")
+	loc, err := time.LoadLocation(os.Getenv("LOCATION"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,8 +71,10 @@ func main() {
 	defer r.Close()
 	go ReadMessages(r)
 	log.Printf("Starting server on port:%s ...", webPort)
-	var wg sync.WaitGroup
-	var wg2 sync.WaitGroup
+	var (
+		wg  sync.WaitGroup
+		wg2 sync.WaitGroup
+	)
 	go BackgroundChecker(&app, &wg)
 	go MissedEmailsChecker(&app, &wg2)
 	go BackgroundCleaner()
